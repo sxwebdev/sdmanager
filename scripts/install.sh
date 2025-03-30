@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 set -e
 
-
 GITHUB_REPO="sxwebdev/sdmanager"
 TARGET_BINARY="sdmanager"
 
@@ -68,15 +67,30 @@ fi
 echo "Downloading binary..."
 curl -L --silent -o "$ASSET_NAME" "$ASSET_URL"
 
-# Extract the archive. We assume it contains a single file named like sdmanager_darwin_amd64.
+# Extract the archive
 echo "Extracting archive..."
 tar -xzf "$ASSET_NAME"
 
-# Find the extracted binary file (assuming only one file is extracted)
-EXTRACTED_BINARY=$(find . -maxdepth 1 -type f -name "sdmanager_*" | head -n 1)
+# Remove the downloaded archive after extraction
+rm "$ASSET_NAME"
+
+# Find the extracted binary file recursively, excluding the archive
+EXTRACTED_BINARY=$(find . -type f -name "${TARGET_BINARY}*" ! -name "*.tar.gz" | head -n 1)
 
 if [ -z "$EXTRACTED_BINARY" ]; then
     echo "Error: No binary file found after extraction."
+    exit 1
+fi
+
+# If the binary is in a subdirectory, move it to the current directory
+if [ "$(dirname "$EXTRACTED_BINARY")" != "." ]; then
+    mv "$EXTRACTED_BINARY" .
+    EXTRACTED_BINARY=$(basename "$EXTRACTED_BINARY")
+fi
+
+# Ensure the extracted file is executable
+if [ ! -x "$EXTRACTED_BINARY" ]; then
+    echo "Error: Extracted file is not executable."
     exit 1
 fi
 
@@ -87,13 +101,9 @@ mv "$EXTRACTED_BINARY" "$TARGET_BINARY"
 INSTALL_DIR="/usr/local/bin"
 
 echo "Moving binary to $INSTALL_DIR..."
-# Use sudo if necessary
 sudo mv "$TARGET_BINARY" "$INSTALL_DIR/$TARGET_BINARY"
 
 echo "Making the binary executable..."
 sudo chmod +x "$INSTALL_DIR/$TARGET_BINARY"
-
-# Clean up the downloaded archive
-rm "$ASSET_NAME"
 
 echo "Installation complete. You can now run $TARGET_BINARY from the terminal."
