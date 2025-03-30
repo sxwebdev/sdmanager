@@ -1,8 +1,11 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
+	"os/signal"
+	"syscall"
 
 	"github.com/sxwebdev/sdmanager"
 )
@@ -20,7 +23,10 @@ func PrintVersion() {
 }
 
 func main() {
-	err := sdmanager.RunSystemdManager()
+	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGTERM, syscall.SIGINT, syscall.SIGQUIT, syscall.SIGKILL)
+	defer cancel()
+
+	err := sdmanager.RunSystemdManager(sdmanager.WithContext(ctx))
 	if err != nil {
 		fmt.Printf("Error: %s\n", err)
 		os.Exit(1)

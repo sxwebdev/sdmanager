@@ -59,3 +59,5 @@ yarn.lock
 
 # Added by goreleaser init:
 dist/
+
+gcx.dev.yaml

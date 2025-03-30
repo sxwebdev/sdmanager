@@ -1,7 +1,10 @@
 package sdmanager
 
 import (
+	"bufio"
 	"bytes"
+	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -303,20 +306,49 @@ func RestartService(serviceName string) (string, error) {
 }
 
 // Выполнение просмотра логов
-func ViewServiceLogs(serviceName string) (string, error) {
-	cmd := exec.Command("journalctl", "-n", "50", "-u", serviceName)
-	output, err := cmd.CombinedOutput()
-	outputStr := strings.TrimSpace(string(output))
+func ViewServiceLogs(ctx context.Context, serviceName string) error {
+	cmd := exec.CommandContext(ctx, "journalctl", "-n", "50", "-u", serviceName, "--output=json", "--no-pager")
 
+	stdout, err := cmd.StdoutPipe()
 	if err != nil {
-		// Если сервис не найден, это не критическая ошибка
-		if strings.Contains(outputStr, "No journal files") {
-			return "Логи для сервиса не найдены", nil
-		}
-		return "", fmt.Errorf("ошибка при получении логов: %w", err)
+		return fmt.Errorf("stdout pipe: %w", err)
 	}
 
-	return outputStr, nil
+	if err := cmd.Start(); err != nil {
+		return fmt.Errorf("ошибка запуска: %w", err)
+	}
+
+	done := make(chan struct{})
+	go func() {
+		scanner := bufio.NewScanner(stdout)
+
+		for scanner.Scan() {
+			jsonLine := scanner.Text()
+
+			var entry map[string]interface{}
+			if err := json.Unmarshal([]byte(jsonLine), &entry); err != nil {
+				fmt.Fprintf(os.Stderr, "ошибка парсинга JSON: %v\n", err)
+				continue
+			}
+
+			if message, ok := entry["MESSAGE"].(string); ok {
+				fmt.Println(message)
+			}
+		}
+
+		if err := scanner.Err(); err != nil {
+			fmt.Fprintf(os.Stderr, "ошибка чтения вывода: %v\n", err)
+		}
+
+		close(done)
+	}()
+
+	select {
+	case <-done:
+		return cmd.Wait()
+	case <-ctx.Done():
+		return cmd.Process.Kill()
+	}
 }
 
 // Полностью установить сервис (создать файл, reload, enable, start)
