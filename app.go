@@ -1,6 +1,7 @@
 package sdmanager
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
@@ -9,6 +10,10 @@ import (
 
 // Создание новой модели приложения
 func NewApplication(o AppOptions) AppModel {
+	if o.ctx == nil {
+		o.ctx = context.Background()
+	}
+
 	return AppModel{
 		Mode:       ModeMainMenu,
 		MenuModel:  NewMenuModel(),
@@ -86,7 +91,7 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case ModeServiceInput:
 		// Обновляем модель ввода имени сервиса
-		serviceModel, cmd, err := UpdateServiceInput(msg, m.ServiceInputModel)
+		serviceModel, cmd, err := UpdateServiceInput(m.options.ctx, msg, m.ServiceInputModel)
 		m.ServiceInputModel = serviceModel
 
 		// Обрабатываем ошибку

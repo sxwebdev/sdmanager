@@ -1,6 +1,7 @@
 package sdmanager
 
 import (
+	"context"
 	"strings"
 
 	"github.com/charmbracelet/bubbles/textinput"
@@ -40,7 +41,7 @@ func NewServiceInputModel(action string) ServiceInputModel {
 }
 
 // Обработка событий при вводе имени сервиса
-func UpdateServiceInput(msg tea.Msg, model ServiceInputModel) (ServiceInputModel, tea.Cmd, error) {
+func UpdateServiceInput(ctx context.Context, msg tea.Msg, model ServiceInputModel) (ServiceInputModel, tea.Cmd, error) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch msg.Type {
@@ -75,7 +76,7 @@ func UpdateServiceInput(msg tea.Msg, model ServiceInputModel) (ServiceInputModel
 			case ActionRestart:
 				result, err = RestartService(serviceName)
 			case ActionViewLog:
-				result, err = ViewServiceLogs(serviceName)
+				err = ViewServiceLogs(ctx, serviceName)
 			}
 
 			if err != nil {
