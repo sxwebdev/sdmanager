@@ -1,34 +1,34 @@
 #!/usr/bin/env bash
 set -e
 
-
 GITHUB_REPO="sxwebdev/sdmanager"
 TARGET_BINARY="sdmanager"
+INSTALL_DIR="/usr/local/bin"
 
 # Determine the operating system
 OS=$(uname)
 if [ "$OS" == "Darwin" ]; then
-    PLATFORM="darwin"
+  PLATFORM="darwin"
 elif [ "$OS" == "Linux" ]; then
-    PLATFORM="linux"
+  PLATFORM="linux"
 else
-    echo "Unsupported OS: $OS"
-    exit 1
+  echo "Unsupported OS: $OS"
+  exit 1
 fi
 
 # Determine the architecture
 ARCH=$(uname -m)
 case "$ARCH" in
-    x86_64)
-        ARCH="amd64"
-        ;;
-    arm64|aarch64)
-        ARCH="arm64"
-        ;;
-    *)
-        echo "Unsupported architecture: $ARCH"
-        exit 1
-        ;;
+  x86_64)
+    ARCH="amd64"
+    ;;
+  arm64|aarch64)
+    ARCH="arm64"
+    ;;
+  *)
+    echo "Unsupported architecture: $ARCH"
+    exit 1
+    ;;
 esac
 
 echo "Detected platform: $PLATFORM, architecture: $ARCH"
@@ -39,8 +39,8 @@ RELEASE_INFO=$(curl --silent "$API_URL")
 
 # Ensure jq is installed
 if ! command -v jq &>/dev/null; then
-    echo "Error: jq is not installed. Please install jq and try again."
-    exit 1
+  echo "Error: jq is not installed. Please install jq and try again."
+  exit 1
 fi
 
 # Find the asset matching the platform and architecture
@@ -49,8 +49,8 @@ ASSET_NAME=$(echo "$RELEASE_INFO" | jq -r --arg platform "$PLATFORM" --arg arch 
 ')
 
 if [ -z "$ASSET_NAME" ]; then
-    echo "No archive found for platform $PLATFORM and architecture $ARCH"
-    exit 1
+  echo "No archive found for platform $PLATFORM and architecture $ARCH"
+  exit 1
 fi
 
 echo "Found archive: $ASSET_NAME"
@@ -61,39 +61,64 @@ ASSET_URL=$(echo "$RELEASE_INFO" | jq -r --arg asset "$ASSET_NAME" '
 ')
 
 if [ -z "$ASSET_URL" ]; then
-    echo "Failed to obtain download URL."
-    exit 1
+  echo "Failed to obtain download URL."
+  exit 1
 fi
 
-echo "Downloading binary..."
+echo "Downloading binary from $ASSET_URL"
 curl -L --silent -o "$ASSET_NAME" "$ASSET_URL"
 
-# Extract the archive. We assume it contains a single file named like sdmanager_darwin_amd64.
+# Extract the archive
 echo "Extracting archive..."
-tar -xzf "$ASSET_NAME"
+tar -xzf "$ASSET_NAME" || {
+  echo "Failed to extract archive."
+  exit 1
+}
 
-# Find the extracted binary file (assuming only one file is extracted)
-EXTRACTED_BINARY=$(find . -maxdepth 1 -type f -name "sdmanager_*" | head -n 1)
+# Remove the downloaded archive after extraction
+echo "Removing archive $ASSET_NAME..."
+rm "$ASSET_NAME"
+
+# Find the extracted binary file recursively, excluding the archive
+EXTRACTED_BINARY=$(find . -type f -name "${TARGET_BINARY}*" ! -name "*.tar.gz" | head -n 1)
 
 if [ -z "$EXTRACTED_BINARY" ]; then
-    echo "Error: No binary file found after extraction."
-    exit 1
+  echo "Error: No binary file found after extraction."
+  exit 1
+fi
+
+echo "Extracted binary: $EXTRACTED_BINARY"
+
+# If the binary is in a subdirectory, move it to the current directory
+if [ "$(dirname "$EXTRACTED_BINARY")" != "." ]; then
+  mv "$EXTRACTED_BINARY" .
+  EXTRACTED_BINARY=$(basename "$EXTRACTED_BINARY")
+fi
+
+# Ensure the extracted file is executable
+if [ ! -x "$EXTRACTED_BINARY" ]; then
+  echo "Error: Extracted file is not executable."
+  exit 1
+fi
+
+# Check install directory
+if [ ! -d "$INSTALL_DIR" ]; then
+  echo "Directory $INSTALL_DIR does not exist."
+  exit 1
 fi
 
 echo "Renaming $EXTRACTED_BINARY to $TARGET_BINARY..."
 mv "$EXTRACTED_BINARY" "$TARGET_BINARY"
 
-# Directory for installing executables
-INSTALL_DIR="/usr/local/bin"
+if [ -f "$INSTALL_DIR/$TARGET_BINARY" ]; then
+  echo "Removing existing binary from $INSTALL_DIR..."
+  sudo rm "$INSTALL_DIR/$TARGET_BINARY"
+fi
 
 echo "Moving binary to $INSTALL_DIR..."
-# Use sudo if necessary
 sudo mv "$TARGET_BINARY" "$INSTALL_DIR/$TARGET_BINARY"
 
 echo "Making the binary executable..."
 sudo chmod +x "$INSTALL_DIR/$TARGET_BINARY"
-
-# Clean up the downloaded archive
-rm "$ASSET_NAME"
 
 echo "Installation complete. You can now run $TARGET_BINARY from the terminal."
