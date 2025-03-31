@@ -89,6 +89,8 @@ sudo ./sdmanager
      - Specify working directory
      - Configure start command
      - Set memory limitations (optional)
+     - Set CPU usage limit in percents (optional)
+     - Set allowed CPU Cores to use in system (optional)
      - Choose additional options
 
 4. **View Logs**

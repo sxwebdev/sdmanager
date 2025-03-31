@@ -46,6 +46,8 @@ const (
 	StateSyslogIdentifier
 	StateMemoryHigh
 	StateMemoryMax
+	StateCPUQuota
+	StateAllowedCPUs
 	StateUnitLocation
 	StateOverwrite
 	StateOptionsSelect
@@ -79,6 +81,8 @@ type ServiceConfig struct {
 	SyslogIdentifier string
 	MemoryHigh       int
 	MemoryMax        int
+	CPUQuota         int
+	AllowedCPUs      string
 	UnitFilePath     string
 }
 

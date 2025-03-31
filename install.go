@@ -39,6 +39,8 @@ func NewInstallModel(appOptions AppOptions) InstallModel {
 			ExecStart:        execPath,
 			MemoryHigh:       0,
 			MemoryMax:        0,
+			CPUQuota:         0,
+			AllowedCPUs:      "",
 			UnitFilePath:     "/etc/systemd/system",
 		},
 		Actions: UserActions{
@@ -195,6 +197,8 @@ func HandleMemoryHighInput(model InstallModel, input string) (InstallModel, erro
 	return model, nil
 }
 
+// Переход к вводу MemoryMax
+
 // Обработка события ввода MemoryMax
 func HandleMemoryMaxInput(model InstallModel, input string) (InstallModel, error) {
 	val, err := ParseIntValue(input, 0)
@@ -212,7 +216,36 @@ func HandleMemoryMaxInput(model InstallModel, input string) (InstallModel, error
 		return model, nil
 	}
 
-	// Переход к вводу пути unit-файла
+	// Переход к вводу CPU quota limit
+	model.State = StateCPUQuota
+	model.Message = "Введите максимально разрешенную нагрузку на ядро в процентах если 0 то нет ограничений:"
+	model.Input.SetValue("")
+	model.Input.Placeholder = "0"
+
+	return model, nil
+}
+
+// Обработка события ввода ProcessUsageLimit
+func HandleCPULimitQuota(model InstallModel, input string) (InstallModel, error) {
+	val, err := ParseIntValue(input, 0)
+	if err != nil {
+		model.ErrorMsg = err.Error()
+		return model, nil
+	}
+
+	model.Config.CPUQuota = val
+
+	model.State = StateAllowedCPUs
+	model.Message = "Введите разрешенные к использованию ядра в формате 0,1,1,0 где 0 отключение ядра:"
+	model.Input.SetValue("")
+	model.Input.Placeholder = ""
+
+	return model, nil
+}
+
+func HandleCPUCoresUsage(model InstallModel, input string) (InstallModel, error) {
+	model.Config.AllowedCPUs = input
+
 	model.State = StateUnitLocation
 	model.Message = "Введите путь для сохранения unit-файла (по умолчанию: /etc/systemd/system):"
 	model.Input.SetValue("")
@@ -343,6 +376,10 @@ func UpdateInstall(msg tea.Msg, model InstallModel) (InstallModel, tea.Cmd, erro
 				model, err = HandleMemoryHighInput(model, model.Input.Value())
 			case StateMemoryMax:
 				model, err = HandleMemoryMaxInput(model, model.Input.Value())
+			case StateCPUQuota:
+				model, err = HandleCPULimitQuota(model, model.Input.Value())
+			case StateAllowedCPUs:
+				model, err = HandleCPUCoresUsage(model, model.Input.Value())
 			case StateUnitLocation:
 				model, err = HandleUnitLocationInput(model, model.Input.Value())
 			case StateOverwrite:
