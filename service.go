@@ -38,6 +38,9 @@ OOMPolicy=restart
 {{ if gt .MemoryMax 0 }}MemoryMax={{.MemoryMax}}M{{ end }}
 {{ if gt .MemoryHigh 0 }}MemoryHigh={{.MemoryHigh}}M{{ end }}
 
+{{ if gt .CPUQuota 0 }}CPUQuota={{.CPUQuota}}%{{ end }}
+{{ if neq .AllowedCPUs "" }}AllowedCPUs={{.AllowedCPUs}}{{ end }}
+
 [Install]
 WantedBy=multi-user.target
 `
@@ -180,6 +183,8 @@ func GenerateUnitPreview(config ServiceConfig) (string, error) {
 		SyslogIdentifier string
 		MemoryHigh       int
 		MemoryMax        int
+		CPUQuota         int
+		AllowedCPUs      string
 	}{
 		ServiceName:      caser.String(config.ServiceName),
 		UserName:         config.UserName,
@@ -190,6 +195,8 @@ func GenerateUnitPreview(config ServiceConfig) (string, error) {
 		SyslogIdentifier: config.SyslogIdentifier,
 		MemoryHigh:       config.MemoryHigh,
 		MemoryMax:        config.MemoryMax,
+		CPUQuota:         config.CPUQuota,
+		AllowedCPUs:      config.AllowedCPUs,
 	}
 
 	// Выполнение шаблона
